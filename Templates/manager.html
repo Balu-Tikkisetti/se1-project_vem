@@ -317,7 +317,7 @@
       <ul>
         {% for event in all_events %}
           <li>Name:{{ event.event_name }}</li>
-          <p>Description{{ event.event_description }}</p>
+          <p>Description:{{ event.event_description }}</p>
           <p>Time: {{ event.event_time }}</p>
           <p>Duration: {{ event.event_duration }}</p>
           <p>Required Skills: {{ ', '.join(event.required_skills) }}</p>
@@ -399,7 +399,9 @@
               <option value="Metacognition">Metacognition</option>
               <option value="Coding skills">Coding skills</option>
               <option value="Sports">Sports</option>
-              <option value="Positive attitude">Positive attitude</option>
+              <option value="Reporting">Reporting</option>
+              <option value="Time MAnagement">Time Management</option>
+              <option value="Interpersonal SKills">Interpersonal Skills</option>
             </select><br>
       
             <input type="submit" value="Create Event">
