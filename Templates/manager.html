@@ -18,6 +18,36 @@
       margin-top: 100px;
     }
 
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 10px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+
+    th {
+      background-color: #f2f2f2;
+    }
+
+    .header {
+      background-color: #333;
+      color: #fff;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .content {
+      margin: 20px;
+    }
+
+    .content h2 {
+      margin-bottom: 10px;
+    }
+
     header {
       display: flex;
       justify-content: flex-end;
@@ -171,7 +201,6 @@
       <div class="profile-button">
         Profile
         <div class="profile-dropdown">
-          <a href="#">Settings</a>
           <a href="#" onclick="showAccountOverlay()">Account</a>
           <a href="{{ url_for('logout') }}">Logout</a>
         </div>
@@ -181,27 +210,51 @@
     <div class="navigation">
       <a href="#" onclick="showContent('events')">Events</a>
       <a href="#" onclick="showContent('my-events')">My Events</a>
-      <a href="#" onclick="showContent('requests')">Requests</a>
+      <a href="#" onclick="showContent('Volunteers')">Volunteers</a>
       <a href="#" onclick="showContent('notifications')">Notifications</a>
       
       
     </div>
 
-    <div class="content" id="requests">
-      <h2>Requests</h2>
-      <!-- Requests section content -->
+    <div class="content" id="Volunteers">
+      <h2>Volunteers</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Volunteer Name</th>
+            <th>Email</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="volunteers-table-body">
+          <!-- The table content will be dynamically filled by the JavaScript code -->
+        </tbody>
+      </table>
     </div>
+    
 
     <div class="content" id="notifications">
       <h2>Notifications</h2>
-      <!-- Notifications section content -->
+      <table>
+        <thead>
+          <tr>
+            <th>Event Name</th>
+            <th>Volunteer Name</th>
+          </tr>
+        </thead>
+        <tbody id="notifications-table-body">
+          <!-- Notifications will be dynamically filled here -->
+        </tbody>
+      </table>
     </div>
+    
 
     <div class="content" id="events">
       <h2>Events</h2>
       <ul>
         {% for event in all_events %}
-          <li>{{ event.event_name }}</li>
+          <li>Name:{{ event.event_name }}</li>
           <p>Description{{ event.event_description }}</p>
           <p>Time: {{ event.event_time }}</p>
           <p>Duration: {{ event.event_duration }}</p>
@@ -221,19 +274,30 @@
             <th>Event Description</th>
             <th>Event Time</th>
             <th>Event Duration</th>
-            <th>Registration Option</th>
-            <th>Manager</th>
+            <th>Required Skills</th>
+            <th>Matched Volunteers</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody id="my-events-table-body">
           {% for event in my_events %}
           <tr>
             <td>{{ event.event_name }}</td>
             <td>{{ event.event_description }}</td>
             <td>{{ event.event_time }}</td>
             <td>{{ event.event_duration }}</td>
-            <td>{{ event.registration_option }}</td>
-            <td>{{ event.manager }}</td>
+            <td>{{ event.required_skills }}</td>
+            <td>
+              <ul>
+                {% for volunteer in event.matched_volunteers %}
+                <li>
+                  {{ volunteer.name }} ({{ volunteer.available_time }})
+                  <div class="status-bar {{ volunteer.status }}">
+                    {{ volunteer.status }}
+                  </div>
+                </li>
+                {% endfor %}
+              </ul>
+            </td>
           </tr>
           {% endfor %}
         </tbody>
@@ -312,7 +376,7 @@
   const urlParts = window.location.href.split('/');
   const user_id = urlParts[urlParts.length - 1].replace("#", "");
 
-
+  managerUserId=user_id;
 
       function showContent(contentId) {
         var contentSections = document.getElementsByClassName('content');
@@ -419,6 +483,156 @@ const selectedEventTime = eventTimeSelect.value;
   .catch(error => {
     console.error('An error occurred while fetching manager credentials:', error);
   });
+
+  document.addEventListener('DOMContentLoaded', function() {
+  const tableBody = document.getElementById("volunteers-table-body");
+
+  fetch(`/get_volunteers`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ manager_id: managerUserId })
+  })
+    .then(response => response.json())
+    .then(data => {
+      // Get the volunteers from the response
+      const volunteers = data.volunteers;
+
+      // Get the manager's own events from the rendered HTML
+      const events = document.getElementsByClassName("manager-event");
+
+      // Clear existing table rows
+      tableBody.innerHTML = "";
+
+      // Loop through each volunteer
+      volunteers.forEach(volunteer => {
+        // Create a new row for the volunteer
+        const newRow = tableBody.insertRow();
+
+        // Volunteer Name column
+        const volunteerNameCell = newRow.insertCell();
+        volunteerNameCell.innerText = volunteer.firstname + " " + volunteer.lastname;
+
+        // Email column
+        const emailCell = newRow.insertCell();
+        emailCell.innerText = volunteer.email;
+
+        // Status column
+        const statusCell = newRow.insertCell();
+        const matchedEvent = volunteer.matched_event;
+        statusCell.innerText = matchedEvent ? `Matched with ${matchedEvent}` : "Not Matched";
+
+        // Action column
+        const actionCell = newRow.insertCell();
+        const volunteerId = volunteer.user_id;
+        const sendRequestButton = document.createElement("button");
+        sendRequestButton.textContent = "Send Request";
+        sendRequestButton.addEventListener("click", () => sendRequest(managerUserId, volunteerId, sendRequestButton)); // Pass the button element
+        actionCell.appendChild(sendRequestButton);
+      });
+    })
+    .catch(error => console.error("Error fetching volunteers:", error));
+})
+
+// Function to send a request to a volunteer
+function sendRequest(managerId, volunteerId, buttonElement) {
+  const requestData = { manager_id: managerId, volunteer_id: volunteerId };
+  
+  fetch(`/send_request`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(requestData)
+  })
+  .then(response => response.json())
+  .then(data => {
+    alert(data.message);
+    // Disable the button and change its text to "Request Sent"
+    buttonElement.textContent = "Request Sent";
+    buttonElement.disabled = true;
+  })
+  .catch(error => console.error("Error sending request:", error));
+}
+
+
+
+document.addEventListener('DOMContentLoaded', function() {
+  const tableBody = document.getElementById("my-events-table-body");
+  const managerUserId = "{{ user_id }}";
+
+  fetch(`/get_manager_events/${managerUserId}`)
+    .then(response => response.json())
+    .then(data => {
+      const myEvents = data.my_events;
+
+      tableBody.innerHTML = "";
+
+      myEvents.forEach(event => {
+        const newRow = tableBody.insertRow();
+
+        const eventNameCell = newRow.insertCell();
+        eventNameCell.innerText = event.event_name;
+
+        const eventDescCell = newRow.insertCell();
+        eventDescCell.innerText = event.event_description;
+
+        const eventTimeCell = newRow.insertCell();
+        eventTimeCell.innerText = event.event_time;
+
+        const eventDurationCell = newRow.insertCell();
+        eventDurationCell.innerText = event.event_duration;
+
+        const requiredSkillsCell = newRow.insertCell();
+        requiredSkillsCell.innerText = event.required_skills;
+
+        const matchedVolunteersCell = newRow.insertCell();
+        const matchedVolunteersList = document.createElement("ul");
+
+        event.matched_volunteers.forEach(volunteer => {
+          const listItem = document.createElement("li");
+          listItem.innerText = `${volunteer.name} (${volunteer.available_time})`;
+
+          const statusBar = document.createElement("div");
+          statusBar.classList.add("status-bar");
+          statusBar.classList.add(volunteer.status.toLowerCase());
+          statusBar.innerText = volunteer.status;
+
+          listItem.appendChild(statusBar);
+          matchedVolunteersList.appendChild(listItem);
+        });
+
+        matchedVolunteersCell.appendChild(matchedVolunteersList);
+      });
+    })
+    .catch(error => console.error("Error fetching manager events:", error));
+});
+
+
+
+
+
+document.addEventListener('DOMContentLoaded', function () {
+    const notificationsTableBody = document.getElementById('notifications-table-body');
+
+    const managerUserId = user_id
+
+    fetch(`/get_notifications/${managerUserId}`)
+      .then(response => response.json())
+      .then(data => {
+        const notifications = data.notifications;
+
+        notifications.forEach(notification => {
+          const newRow = notificationsTableBody.insertRow();
+          const eventNameCell = newRow.insertCell();
+          const volunteerNameCell = newRow.insertCell();
+
+          eventNameCell.innerText = notification.event_name;
+          volunteerNameCell.innerText = notification.volunteer_name;
+        });
+      })
+      .catch(error => console.error('Error fetching notifications:', error));
+  });
+
+
+
 
     </script>
   </div>

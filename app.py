@@ -1,5 +1,5 @@
 import json
-from flask import jsonify
+from flask import jsonify,request
 import firebase_admin
 from firebase_admin import auth
 from firebase_admin import credentials, firestore
@@ -47,7 +47,7 @@ def volunteer(user_id):
     user_data = get_user_data(user_id)
 
     if user_data and user_data['collection'] == 'volunteers':
-        events = get_all_events()  
+        events = get_all_events_for_users()  
 
         return render_template('volunteer.html', user_id=user_id,events=events)
 
@@ -66,7 +66,7 @@ def manager(user_id):
         my_events = get_all_events_manager(user_id)
         
         # Get all events for the general event section
-        all_events = get_all_events()
+        all_events = get_all_events_for_users()
 
         return render_template('manager.html', user_id=user_id, my_events=my_events, all_events=all_events)
 
@@ -76,15 +76,6 @@ def manager(user_id):
 
 
 
-def get_all_events():
-    events = []
-    event_docs = db.collection('events').stream()
-
-    for doc in event_docs:
-        event_data = doc.to_dict()
-        events.append(event_data)
-
-    return events
 
 @app.route('/signup.html')
 def signup():
@@ -330,8 +321,10 @@ def create_event(user_id):
     event_data['event_id'] = event_id  # Store the event ID in the event data
     event_ref.set(event_data)
 
-    update_volunteer_fields()
+
     update_suitable_volunteers()
+    update_volunteer_fields()
+    
 
     return redirect(url_for('manager', user_id=user_id))
 
@@ -396,6 +389,16 @@ def add_volunteer_to_event(event_id, volunteer_id, field):
 def get_all_events_manager(manager_id):
     events = []
     event_docs = db.collection('events').where('manager_id', '==', manager_id).stream()
+
+    for doc in event_docs:
+        event_data = doc.to_dict()
+        events.append(event_data)
+
+    return events
+
+def get_all_events_for_users():
+    events = []
+    event_docs = db.collection('events').stream()
 
     for doc in event_docs:
         event_data = doc.to_dict()
@@ -474,6 +477,219 @@ def update_suitable_volunteers():
         event_ref = db.collection('events').document(event_id)
         event_ref.update({'suitablevolunteers': suitable_volunteers})
 
+
+
+
+@app.route('/apply_to_event/<event_id>/<user_id>', methods=['POST'])
+def apply_to_event(event_id, user_id):
+    event_ref = db.collection('events').document(event_id)
+    event_data = event_ref.get().to_dict()
+
+    if not event_data:
+        return jsonify({'message': 'Event not found'}), 404
+
+    manager_id = event_data.get('manager_id')
+    if not manager_id:
+        return jsonify({'message': 'Manager ID not found for the event'}), 400
+
+    manager_ref = db.collection('managers').document(manager_id)
+    manager_data = manager_ref.get().to_dict()
+
+    if not manager_data:
+        return jsonify({'message': 'Manager not found'}), 404
+
+    # Add volunteer ID to the 'applied_person' field in the manager's document
+    applied_persons = manager_data.get('applied_persons', [])
+    if user_id not in applied_persons:
+        applied_persons.append(user_id)
+        manager_ref.update({'applied_persons': applied_persons})
+        return jsonify({'message': 'Successfully applied to the event'})
+
+    return jsonify({'message': 'You have already applied to this event'}), 400
+
+
+
+@app.route('/get_volunteer_requests/<user_id>')
+def get_volunteer_requests(user_id):
+    # Fetch the requests where the user_id is present in the suitablevolunteers field
+    requests = []
+    event_docs = db.collection('events').where('suitablevolunteers', 'array_contains', user_id).stream()
+
+    for doc in event_docs:
+        event_data = doc.to_dict()
+        event_id = doc.id
+        accepted_volunteers = event_data.get('accepted', [])
+        status = 'Accepted' if user_id in accepted_volunteers else 'Accept'
+        requests.append({
+            'event_id': event_id,
+            'event_name': event_data['event_name'],
+            'event_time': event_data['event_time'],
+            'event_venue': event_data['event_venue'],
+            'status': status
+        })
+
+    return jsonify({'requests': requests})
+
+@app.route('/update_status/<user_id>/<event_id>/<new_status>', methods=['POST'])
+def update_status(user_id, event_id, new_status):
+    event_ref = db.collection('events').document(event_id)
+
+    # If new_status is 'Accepted', add the user_id to the 'accepted' field of the event
+    if new_status == 'Accepted':
+        event_ref.update({'accepted': firestore.ArrayUnion([user_id])})
+    # If new_status is 'Accept', remove the user_id from the 'accepted' field of the event
+    elif new_status == 'Accept':
+        event_ref.update({'accepted': firestore.ArrayRemove([user_id])})
+
+    return json.dumps({'message': 'Success'})
+
+
+
+def get_all_volunteers_formanager(manager_id=None):
+    volunteers = []
+    volunteer_docs = db.collection('volunteers').stream()
+
+    for doc in volunteer_docs:
+        volunteer_data = doc.to_dict()
+        volunteer_id = doc.id
+        volunteer_data['user_id'] = volunteer_id
+
+        if not manager_id or volunteer_id not in get_matched_volunteers(manager_id):
+            volunteers.append(volunteer_data)
+
+    return volunteers
+
+def get_matched_volunteers(manager_id):
+    matched_volunteers = []
+    event_docs = db.collection('events').where('manager_id', '==', manager_id).stream()
+
+    for doc in event_docs:
+        event_data = doc.to_dict()
+        matched_volunteers.extend(event_data.get('suitablevolunteers', []))
+
+    return matched_volunteers
+
+def get_matched_events_for_manager(manager_id):
+    matched_events = []
+    event_docs = db.collection('events').where('manager_id', '==', manager_id).stream()
+
+    for doc in event_docs:
+        event_data = doc.to_dict()
+        event_id = doc.id
+        matched_volunteers = event_data.get('suitablevolunteers', [])
+
+        if matched_volunteers:
+            matched_event = {
+                'event_id': event_id,
+                'event_name': event_data['event_name'],
+                'matched_volunteers': matched_volunteers
+            }
+            matched_events.append(matched_event)
+
+    return matched_events
+
+
+@app.route('/get_volunteers', methods=['POST'])
+def get_volunteers():
+    data = request.json
+    manager_id = data.get('manager_id')
+    volunteers = get_all_volunteers_formanager(manager_id)
+    matched_events = get_matched_events_for_manager(manager_id)
+    return jsonify({'volunteers': volunteers, 'matched_events': matched_events})
+
+
+@app.route('/send_request', methods=['POST'])
+def send_request():
+    data = request.json
+    manager_id = data.get('manager_id')
+    volunteer_id = data.get('volunteer_id')
+
+    if manager_id and volunteer_id:
+        manager_ref = db.collection('managers').document(manager_id)
+        manager_ref.update({'sendrequest': firestore.ArrayUnion([volunteer_id])})
+
+        return jsonify({'message': 'Request sent successfully'})
+    else:
+        return jsonify({'message': 'Invalid request data'}), 400
+    
+
+
+def get_matched_volunteers_for_event(event_id):
+    volunteers = []
+    event_doc = db.collection('events').document(event_id).get()
+    if event_doc.exists:
+        event_data = event_doc.to_dict()
+        matched_volunteer_ids = event_data.get('suitablevolunteers', [])
+        for volunteer_id in matched_volunteer_ids:
+            volunteer_doc = db.collection('volunteers').document(volunteer_id).get()
+            if volunteer_doc.exists:
+                volunteer_data = volunteer_doc.to_dict()
+                volunteer_name = f"{volunteer_data.get('firstname', '')} {volunteer_data.get('lastname', '')}"
+                volunteer_available_time = volunteer_data.get('available_time', 'Not set')
+                volunteer_status = 'Accepted' if volunteer_id in event_data.get('accepted', []) else 'Pending'
+                volunteer_info = {
+                    'name': volunteer_name,
+                    'available_time': volunteer_available_time,
+                    'status': volunteer_status
+                }
+                volunteers.append(volunteer_info)
+    return volunteers
+
+def get_manager_events(manager_id):
+    events = []
+    event_docs = db.collection('events').where('manager_id', '==', manager_id).stream()
+
+    for doc in event_docs:
+        event_data = doc.to_dict()
+        matched_volunteers = get_matched_volunteers_for_event(doc.id)
+        event_data['matched_volunteers'] = matched_volunteers
+        events.append(event_data)
+
+    return events
+
+@app.route('/get_manager_events/<manager_id>')
+def get_manager_events_route(manager_id):
+    my_events = get_manager_events(manager_id)
+    return jsonify({'my_events': my_events})
+
+
+
+
+def get_manager_events_with_accepted_volunteers(manager_id):
+    events = []
+    event_docs = db.collection('events').where('manager_id', '==', manager_id).stream()
+
+    for doc in event_docs:
+        event_data = doc.to_dict()
+        matched_volunteers = get_matched_volunteers_for_event(doc.id)
+        event_data['matched_volunteers'] = matched_volunteers
+        events.append(event_data)
+
+    return events
+
+@app.route('/get_notifications/<manager_id>', methods=['GET'])
+def get_notifications(manager_id):
+    notifications = []
+    events = get_manager_events_with_accepted_volunteers(manager_id)
+
+    for event in events:
+        event_id = event['event_id']
+        event_name = event['event_name']
+        matched_volunteers = event['matched_volunteers']
+
+        for volunteer in matched_volunteers:
+            volunteer_id = volunteer['user_id']
+            volunteer_name = f"{volunteer['firstname']} {volunteer['lastname']}"
+
+            if 'accepted' in volunteer:
+                if event_id in volunteer['accepted']:
+                    notification = {
+                        'event_name': event_name,
+                        'volunteer_name': volunteer_name
+                    }
+                    notifications.append(notification)
+
+    return jsonify({'notifications': notifications})
 
 
 

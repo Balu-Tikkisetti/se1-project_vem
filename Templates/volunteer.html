@@ -129,7 +129,6 @@
         Profile
         <div class="profile-dropdown">
           <a href="#" onclick="showAccountOverlay()">Account</a>
-          <a href="#">Settings</a>
           <a href="{{ url_for('logout') }}">Logout</a>
         </div>
       </div>
@@ -146,7 +145,19 @@
 
     <div class="content" id="requests">
       <h2>Requests</h2>
-      <!-- Requests section content -->
+      <table id="requests-table">
+        <thead>
+          <tr>
+            <th>Event Name</th>
+            <th>Event Time</th>
+            <th>Event Venue</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Requests table content will be added here -->
+        </tbody>
+      </table>
     </div>
 
     <div class="content" id="notifications">
@@ -164,6 +175,7 @@
           <p>Duration: {{ event.event_duration }}</p>
           <p>Required Skills: {{ ', '.join(event.required_skills) }}</p>
           <p>Event Venue:{{ event.event_venue}}</p>
+          
           <hr>
         {% endfor %}
       </ul>
@@ -363,6 +375,69 @@ fetch('/get_skills/' + user_id)
           console.error('An error occurred:', error);
         });
     }
+
+
+
+
+    document.addEventListener('DOMContentLoaded', function () {
+    var user_id = "{{ user_id }}"; // Set the user_id variable with the value from Flask
+
+    // Function to fetch and populate the Volunteer Requests table
+    function fetchVolunteerRequests() {
+      fetch(`/get_volunteer_requests/${user_id}`)
+        .then(response => response.json())
+        .then(data => {
+          // Clear the table body
+          var requestsTable = document.getElementById("requests-table").getElementsByTagName('tbody')[0];
+          requestsTable.innerHTML = "";
+
+          // Populate the table with fetched data
+          data.requests.forEach(request => {
+            var newRow = requestsTable.insertRow();
+            newRow.innerHTML = `
+              <td>${request.event_name}</td>
+              <td>${request.event_time}</td>
+              <td>${request.event_venue}</td>
+              <td><button class="status-btn" data-event-id="${request.event_id}" data-status="${request.status}">${request.status}</button></td>
+            `;
+          });
+          document.querySelectorAll('.status-btn').forEach(button => {
+            button.addEventListener('click', function () {
+              var eventId = this.getAttribute('data-event-id');
+              var status = this.getAttribute('data-status');
+              updateStatus(eventId, status);
+            });
+          });
+        })
+        .catch(error => {
+          // Handle the error response (optional)
+          console.log("Error:", error);
+        });
+    }
+
+    // Fetch and populate the Volunteer Requests table on page load
+    fetchVolunteerRequests();
+        // Function to update the status and send POST request to Flask
+        function updateStatus(eventId, currentStatus) {
+      var newStatus = currentStatus === 'Accept' ? 'Accepted' : 'Accept';
+
+      fetch(`/update_status/${user_id}/${eventId}/${newStatus}`, {
+        method: 'POST'
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.message === 'Success') {
+          // Update the button text on successful response
+          document.querySelector(`.status-btn[data-event-id="${eventId}"]`).innerText = newStatus;
+          document.querySelector(`.status-btn[data-event-id="${eventId}"]`).setAttribute('data-status', newStatus);
+        }
+      })
+      .catch(error => {
+        // Handle the error response (optional)
+        console.log("Error:", error);
+      });
+    }
+  });
 
 
 
