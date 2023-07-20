@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Manager Dashboard</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f2f2f2;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #fff;
+      border-radius: 5px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      margin-top: 100px;
+    }
+
+    header {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 20px;
+    }
+
+    .profile-button {
+      position: relative;
+      display: inline-block;
+      cursor: pointer;
+      padding: 8px 12px;
+      background-color: #f2f2f2;
+      border-radius: 4px;
+      transition: background-color 0.3s ease;
+    }
+
+    .profile-button:hover {
+      background-color: #e0e0e0;
+    }
+
+    .profile-dropdown {
+      display: none;
+      position: absolute;
+      background-color: #f9f9f9;
+      min-width: 120px;
+      box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
+      z-index: 1;
+    }
+
+    .profile-dropdown a {
+      color: black;
+      padding: 12px 16px;
+      text-decoration: none;
+      display: block;
+    }
+
+    .profile-dropdown a:hover {
+      background-color: #f1f1f1;
+    }
+
+    .profile-button:hover .profile-dropdown {
+      display: block;
+    }
+
+    .navigation {
+      display: flex;
+      justify-content: flex-start;
+      margin-bottom: 20px;
+    }
+
+    .navigation a {
+      margin-right: 10px;
+      text-decoration: none;
+      color: #333;
+      padding: 8px 12px;
+      border-radius: 4px;
+      background-color: #f2f2f2;
+      transition: background-color 0.3s ease;
+    }
+
+    .navigation a:hover {
+      background-color: #e0e0e0;
+    }
+
+    .content {
+      background-color: #f9f9f9;
+      padding: 20px;
+      border-radius: 5px;
+      display: none;
+    }
+
+    .content.active {
+      display: block;
+    }
+
+    h2 {
+      margin-top: 0;
+      margin-bottom: 20px;
+      font-size: 24px;
+    }
+
+    .account-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.6);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 999;
+    }
+
+    .account-overlay.active {
+      display: flex;
+    }
+
+    .account-form {
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 5px;
+      max-width: 400px;
+      width: 100%;
+    }
+
+    .account-form h3 {
+      margin-top: 0;
+      margin-bottom: 20px;
+    }
+
+    .account-form label {
+      display: block;
+      margin-bottom: 10px;
+    }
+
+    .account-form input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      margin-bottom: 10px;
+    }
+
+    .account-form button {
+      background-color: #4CAF50;
+      color: white;
+      padding: 8px 12px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .account-form button:hover {
+      background-color: #45a049;
+    }
+
+    .account-form .close-button {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 20px;
+      color: #ccc;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="profile-button">
+        Profile
+        <div class="profile-dropdown">
+          <a href="#">Settings</a>
+          <a href="#" onclick="showAccountOverlay()">Account</a>
+          <a href="{{ url_for('logout') }}">Logout</a>
+        </div>
+      </div>
+    </header>
+
+    <div class="navigation">
+      <a href="#" onclick="showContent('events')">Events</a>
+      <a href="#" onclick="showContent('my-events')">My Events</a>
+      <a href="#" onclick="showContent('requests')">Requests</a>
+      <a href="#" onclick="showContent('notifications')">Notifications</a>
+      
+      
+    </div>
+
+    <div class="content" id="requests">
+      <h2>Requests</h2>
+      <!-- Requests section content -->
+    </div>
+
+    <div class="content" id="notifications">
+      <h2>Notifications</h2>
+      <!-- Notifications section content -->
+    </div>
+
+    <div class="content" id="events">
+      <h2>Events</h2>
+      <ul>
+        {% for event in all_events %}
+          <li>{{ event.event_name }}</li>
+          <p>Description{{ event.event_description }}</p>
+          <p>Time: {{ event.event_time }}</p>
+          <p>Duration: {{ event.event_duration }}</p>
+          <p>Required Skills: {{ ', '.join(event.required_skills) }}</p>
+          <p>Event Venue:{{ event.event_venue}}</p>
+          <hr>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="content" id="my-events">
+      <h2>My Events</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Event Name</th>
+            <th>Event Description</th>
+            <th>Event Time</th>
+            <th>Event Duration</th>
+            <th>Registration Option</th>
+            <th>Manager</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for event in my_events %}
+          <tr>
+            <td>{{ event.event_name }}</td>
+            <td>{{ event.event_description }}</td>
+            <td>{{ event.event_time }}</td>
+            <td>{{ event.event_duration }}</td>
+            <td>{{ event.registration_option }}</td>
+            <td>{{ event.manager }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <button onclick="showCreateEventFormOverlay()">+ Add Event</button>
+      <div class="overlay" id="create-event-overlay">
+        <div class="overlay-content">
+          <h2>Create Event</h2>
+          <form id="create-event-form" method="POST">
+            <label for="event_name">Event Name:</label>
+            <input type="text" id="event_name" name="event_name" required><br>
+      
+            <label for="event_description">Event Description:</label>
+            <textarea id="event_description" name="event_description" required></textarea><br>
+            
+            <label for="event_time">Event Time:</label>
+            <select id="event_time" name="event_time" required>
+              <option value="9AM-12PM">9.00 AM - 12.00 PM</option>
+              <option value="2PM-5PM">2.00 PM - 5.00 PM</option>
+              <option value="6PM-10PM">6.00 PM - 10.00 PM</option>
+            </select><br>
+      
+            <label for="event_duration">Event Duration:</label>
+            <input type="text" id="event_duration" name="event_duration" required><br>
+      
+            <label for="event_venue">Event Venue:</label>
+            <input type="text" id="event_venue" name="event_venue" required><br>
+      
+            <label for="required_skills">Required Skills:</label>
+            <select id="required_skills" name="required_skills" multiple>
+              <option value="Creativity">Creativity</option>
+              <option value="Communication">Communication</option>
+              <option value="Mindfulness">Mindfulness</option>
+              <option value="Metaconfigation">Metaconfigation</option>
+              <option value="Leadership skills">Leadership skills</option>
+              <option value="Fortitude">Fortitude</option>
+              <option value="Metacognition">Metacognition</option>
+              <option value="Coding skills">Coding skills</option>
+              <option value="Sports">Sports</option>
+              <option value="Positive attitude">Positive attitude</option>
+            </select><br>
+      
+            <input type="submit" value="Create Event">
+            <button onclick="hideCreateEventFormOverlay()">Cancel</button>
+          </form>
+        </div>
+      </div>
+      
+           
+    </div>
+    
+    <div class="content" id="managers">
+      <h2>Manager</h2>
+      <!-- Managers section content -->
+    </div>
+
+    <div class="account-overlay" id="account-overlay">
+      <div class="account-form">
+        <label for="manager_username">Username:</label>
+        <input type="text" id="manager_username" value="" disabled><br>
+    
+        <label for="manager_email">Email:</label>
+        <input type="email" id="manager_email" value="" disabled><br>
+    
+        <label for="manager_password">Password:</label>
+        <input type="text" id="manager_password" value="" disabled><br>
+    
+        <button class="close-button" onclick="hideAccountOverlay()">&times;</button>
+      </div>
+    </div>
+
+    <script>
+
+
+  // Extract the user ID from the URL
+  const urlParts = window.location.href.split('/');
+  const user_id = urlParts[urlParts.length - 1].replace("#", "");
+
+
+
+      function showContent(contentId) {
+        var contentSections = document.getElementsByClassName('content');
+        for (var i = 0; i < contentSections.length; i++) {
+          contentSections[i].classList.remove('active');
+        }
+        var selectedContent = document.getElementById(contentId);
+        selectedContent.classList.add('active');
+      }
+// Show the Create Event form overlay
+function showCreateEventFormOverlay() {
+  const createEventOverlay = document.getElementById('create-event-overlay');
+  createEventOverlay.style.display = 'block';
+}
+
+
+function hideCreateEventFormOverlay() {
+  const createEventOverlay = document.getElementById('create-event-overlay');
+  createEventOverlay.style.display = 'none';
+}
+
+const createEventForm = document.getElementById('create-event-form');
+const requiredSkillsSelect = document.getElementById('required_skills');
+createEventForm.addEventListener('submit', function(event) {
+  event.preventDefault(); // Prevent form submission
+
+  // Get the selected skills
+  const selectedSkills = Array.from(requiredSkillsSelect.options)
+    .filter(option => option.selected)
+    .map(option => option.value);
+
+const eventTimeSelect = document.getElementById('event_time');
+const selectedEventTime = eventTimeSelect.value;
+  // Create the request body
+  const requestBody = {
+    event_name: createEventForm.event_name.value,
+    event_description: createEventForm.event_description.value,
+    event_time: selectedEventTime,
+    event_duration: createEventForm.event_duration.value,
+    event_venue: createEventForm.event_venue.value,
+    required_skills: selectedSkills
+  };
+
+
+  fetch(`/create_event/${user_id}`, {
+    method: 'POST',
+    body: JSON.stringify(requestBody),
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  })
+  .then(response => {
+    if (response.ok) {
+      // Event creation successful
+      // You can perform any necessary actions here, such as showing a success message or redirecting the user
+      console.log('Event created successfully!');
+      createEventForm.reset();
+      hideCreateEventFormOverlay();
+    } else {
+      // Event creation failed
+      // You can handle the error condition here, such as displaying an error message to the user
+      console.error('Failed to create event');
+    }
+  })
+  .catch(error => {
+    // Error occurred while creating the event
+    console.error('An error occurred:', error);
+  });
+});
+
+
+
+
+
+  
+
+  
+
+
+  function showAccountOverlay() {
+        var accountOverlay = document.getElementById('account-overlay');
+        accountOverlay.classList.add('active');
+      }
+
+      function hideAccountOverlay() {
+        var accountOverlay = document.getElementById('account-overlay');
+        accountOverlay.classList.remove('active');
+      }
+
+    const accountOverlay = document.getElementById('account-overlay');
+  const managerUsernameInput = document.getElementById('manager_username');
+  const managerEmailInput = document.getElementById('manager_email');
+  const managerPasswordInput = document.getElementById('manager_password');
+
+  fetch(`/get_manager_credentials/${user_id}`, {
+    method: 'GET'
+  })
+  .then(response => response.json())
+  .then(data => {
+    managerUsernameInput.value = data.username;
+    managerEmailInput.value = data.email;
+    managerPasswordInput.value = data.password;
+  })
+  .catch(error => {
+    console.error('An error occurred while fetching manager credentials:', error);
+  });
+
+    </script>
+  </div>
+</body>
+</html>

@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Volunteer Dashboard</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f2f2f2;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #fff;
+      border-radius: 5px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      margin-top: 100px;
+    }
+
+    header {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 20px;
+    }
+
+    .profile-button {
+      position: relative;
+      display: inline-block;
+      cursor: pointer;
+      padding: 8px 12px;
+      background-color: #f2f2f2;
+      border-radius: 4px;
+      transition: background-color 0.3s ease;
+    }
+
+    .profile-button:hover {
+      background-color: #e0e0e0;
+    }
+
+    .profile-dropdown {
+      display: none;
+      position: absolute;
+      background-color: #f9f9f9;
+      min-width: 120px;
+      box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
+      z-index: 1;
+    }
+
+    .profile-dropdown a {
+      color: black;
+      padding: 12px 16px;
+      text-decoration: none;
+      display: block;
+    }
+
+    .profile-dropdown a:hover {
+      background-color: #f1f1f1;
+    }
+
+    .profile-button:hover .profile-dropdown {
+      display: block;
+    }
+
+    .navigation {
+      display: flex;
+      justify-content: flex-start;
+      margin-bottom: 20px;
+    }
+
+    .navigation a {
+      margin-right: 10px;
+      text-decoration: none;
+      color: #333;
+      padding: 8px 12px;
+      border-radius: 4px;
+      background-color: #f2f2f2;
+      transition: background-color 0.3s ease;
+    }
+
+    .navigation a:hover {
+      background-color: #e0e0e0;
+    }
+
+    .content {
+      background-color: #f9f9f9;
+      padding: 20px;
+      border-radius: 5px;
+      display: none;
+    }
+
+    .content.active {
+      display: block;
+    }
+
+    h2 {
+      margin-top: 0;
+      margin-bottom: 20px;
+      font-size: 24px;
+    }
+
+    .overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 9999;
+    }
+
+    .overlay-content {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 5px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="profile-button">
+        Profile
+        <div class="profile-dropdown">
+          <a href="#" onclick="showAccountOverlay()">Account</a>
+          <a href="#">Settings</a>
+          <a href="{{ url_for('logout') }}">Logout</a>
+        </div>
+      </div>
+    </header>
+
+    <div class="navigation">
+      <a href="#" onclick="showContent('events')">Events</a>
+      <a href="#" onclick="showContent('requests')">Requests</a>
+      <a href="#" onclick="showContent('eventsapplied')">Events Applied</a>
+      <a href="#" onclick="showContent('notifications')">Notifications</a>
+      
+      
+    </div>
+
+    <div class="content" id="requests">
+      <h2>Requests</h2>
+      <!-- Requests section content -->
+    </div>
+
+    <div class="content" id="notifications">
+      <h2>Notifications</h2>
+      <!-- Notifications section content -->
+    </div>
+
+    <div class="content" id="events">
+      <h2>Events</h2>
+      <ul>
+        {% for event in events %}
+          <li>Name:{{ event.event_name }}</li>
+          <p>Description:{{ event.event_description }}</p>
+          <p>Time: {{ event.event_time }}</p>
+          <p>Duration: {{ event.event_duration }}</p>
+          <p>Required Skills: {{ ', '.join(event.required_skills) }}</p>
+          <p>Event Venue:{{ event.event_venue}}</p>
+          <hr>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="content" id="eventsapplied">
+      <h2>Events Applied</h2>
+      <!-- Volunteers section content -->
+    </div>
+
+    <div class="overlay" id="accountOverlay">
+      <div class="overlay-content">
+        <h2>Account</h2>
+        <p>Username: <span id="username"></span></p>
+        <h3>Skills:</h3>
+        <ul id="skillsList">
+          <!-- Skills will be dynamically added here -->
+        </ul>
+        <h3>Available Time:</h3>
+        <span id="availableTime"></span>
+        <select id="timeSelect">
+          <option value="9AM-12PM">9.00 AM - 12.00 PM</option>
+          <option value="2PM-5PM">2.00 PM - 5.00 PM</option>
+          <option value="6PM-10PM">6.00 PM - 10.00 PM</option>
+        </select>
+        <button onclick="updateAvailableTime()">Update Time</button>
+        <button onclick="showSkillsOverlay()">+ Add Skills</button>
+        <button class="close-button" onclick="closeAccountOverlay()">Close</button>
+      </div>
+    </div>
+
+    <div class="overlay" id="skillsOverlay">
+      <div class="overlay-content">
+        <h2>Add Skills</h2>
+        <p>Select your skills:</p>    
+        <select id="skills" multiple>
+          <option value="Creativity">Creativity</option>
+          <option value="Communication">Communication</option>
+          <option value="Mindfulness">Mindfulness</option>
+          <option value="Metaconfigation">Metaconfigation</option>
+          <option value="Leadership skills">Leadership skills</option>
+          <option value="Fortitude">Fortitude</option>
+          <option value="Creativity">Creativity</option>
+          <option value="Metacognition">Metacognition</option>
+          <option value="Coding skills">Coding skills</option>
+          <option value="Sports">Sports</option>
+          <option value="Positive attitude">Positive attitude</option>
+        </select>
+        <button onclick="saveSkills()">Save</button>
+      </div>
+    </div>
+
+    <script>
+      function showContent(contentId) {
+        var contentSections = document.getElementsByClassName('content');
+        for (var i = 0; i < contentSections.length; i++) {
+          contentSections[i].classList.remove('active');
+        }
+        var selectedContent = document.getElementById(contentId);
+        selectedContent.classList.add('active');
+      }
+
+
+
+
+
+
+      function showAccountOverlay() {
+        var accountOverlay = document.getElementById('accountOverlay');
+        accountOverlay.style.display = 'block';
+        var skillsList = document.getElementById('skillsList');
+        const user_id = window.location.href.split('/').pop().replace("#", "");
+
+        fetch('/get_available_time/' + user_id)
+      .then(response => response.json())
+      .then(data => {
+        var availableTimeElement = document.getElementById('availableTime');
+        var availableTime = data.available_time;
+        availableTimeElement.textContent = availableTime;
+      })
+      .catch(error => {
+        console.error('An error occurred while fetching available time:', error);
+        var availableTimeElement = document.getElementById('availableTime');
+        availableTimeElement.textContent = 'Error fetching available time';
+      });
+
+// Fetch the volunteer's skills from the server
+fetch('/get_skills/' + user_id)
+  .then(response => response.json())
+  .then(data => {
+    var skills = data.skills;
+    skillsList.innerHTML = ''; // Clear any existing skills
+
+    if (skills.length > 0) {
+      skills.forEach(skill => {
+        var listItem = document.createElement('li');
+        listItem.textContent = skill;
+        skillsList.appendChild(listItem);
+      });
+    } else {
+        var noSkillsMessage = document.createElement('li');
+        noSkillsMessage.textContent = 'No skills found';
+        skillsList.appendChild(noSkillsMessage);
+      }
+    })
+    .catch(error => {
+      console.error('An error occurred while fetching skills:', error);
+      var errorMessage = document.createElement('li');
+      errorMessage.textContent = 'Error fetching skills';
+      skillsList.appendChild(errorMessage);
+    });
+  var usernameElement = document.getElementById('username');
+  fetch('/get_username/' + user_id)
+    .then(response => response.json())
+    .then(data => {
+      var username = data.username;
+      usernameElement.textContent = username;
+    })
+    .catch(error => {
+      console.error('An error occurred while fetching username:', error);
+      usernameElement.textContent = 'Error fetching username';
+    });
+      }
+
+      function showSkillsOverlay() {
+        var skillsOverlay = document.getElementById('skillsOverlay');
+        skillsOverlay.style.display = 'block';
+      }
+      function closeAccountOverlay() {
+    var accountOverlay = document.getElementById('accountOverlay');
+    accountOverlay.style.display = 'none';
+  }
+
+  function saveSkills() {
+    var skillsSelect = document.getElementById('skills');
+    var selectedSkills = Array.from(skillsSelect.selectedOptions, option => option.value);
+
+    const user_id = window.location.href.split('/').pop().replace("#", "");
+
+    fetch(`/update_skills/${user_id}`, {
+      method: 'POST',
+      body: JSON.stringify({ skills: selectedSkills }),
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    .then(response => {
+      if (response.ok) {
+        // Skills updated successfully
+        // Perform any necessary actions here
+        console.log('Skills updated successfully!');
+        var skillsOverlay = document.getElementById('skillsOverlay');
+        skillsOverlay.style.display = 'none';
+      } else {
+        // Skills update failed
+        // Handle the error condition here, such as displaying an error message to the user
+        console.error('Failed to update skills');
+      }
+    })
+    .catch(error => {
+      // Error occurred while updating skills
+      console.error('An error occurred:', error);
+    });
+  }
+
+
+
+  function updateAvailableTime() {
+      var availableTimeSelect = document.getElementById('timeSelect');
+      var selectedTime = Array.from(availableTimeSelect.selectedOptions, option => option.value);
+
+      const user_id = window.location.href.split('/').pop().replace("#", "");
+
+      fetch(`/update_available_time/${user_id}`, {
+        method: 'POST',
+        body: JSON.stringify({ available_time: selectedTime }),
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+        .then(response => {
+          if (response.ok) {
+            // Available Time updated successfully
+            // Perform any necessary actions here
+            console.log('Available Time updated successfully!');
+            var accountOverlay = document.getElementById('accountOverlay');
+            accountOverlay.style.display = 'none';
+          } 
+          else {
+            // Available Time update failed
+            // Handle the error condition here, such as displaying an error message to the user
+            console.error('Failed to update Available Time');
+          }
+        })
+        .catch(error => {
+          // Error occurred while updating Available Time
+          console.error('An error occurred:', error);
+        });
+    }
+
+
+
+
+    </script>
+  </div>
+</body>
+</html>
