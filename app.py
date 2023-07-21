@@ -818,6 +818,54 @@ def get_applied_events(user_id):
 
     return jsonify({'events': events})
 
+def get_manager_eventsforrequests(manager_id):
+    try:
+        events = []
+        events_query = db.collection('events').where('manager_id', '==', manager_id)
+        for event_snapshot in events_query.stream():
+            events.append(event_snapshot.to_dict())
+        return events
+    except Exception as e:
+        print('Error:', str(e))
+        return []
+
+
+
+@app.route('/get_manager_requests/<volunteer_id>', methods=['GET'])
+def get_manager_requests(volunteer_id):
+    try:
+        # Find the manager documents with requests to the volunteer
+        manager_requests = []
+        managers_query = db.collection('managers').where(f'sendrequests.{volunteer_id}', '==', True)
+        for manager_snapshot in managers_query.stream():
+            manager_data = manager_snapshot.to_dict()
+            manager_id = manager_snapshot.id
+            manager_name = manager_data.get('firstname') + ' ' + manager_data.get('lastname')
+
+
+            # Get the event data associated with the manager
+            manager_events = get_manager_eventsforrequests(manager_id)
+            for event_data in manager_events:
+                if True :
+                    manager_requests.append({
+                        'manager_id': manager_id,
+                        'manager_name': manager_name,
+                        'event_id':  event_data.get('event_id'),
+                        'event_name': event_data.get('event_name'),
+                        'event_description': event_data.get('event_description'),
+                        'event_time': event_data.get('event_time'),
+                        'event_duration': event_data.get('event_duration'),
+                        'event_venue': event_data.get('event_venue')
+                    })
+
+        return jsonify({'manager_requests': manager_requests})
+    except Exception as e:
+        return jsonify({'message': 'Error', 'error': str(e)})
+
+
+
+
+
 
 
 

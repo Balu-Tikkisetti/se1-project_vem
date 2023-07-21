@@ -145,6 +145,7 @@
     <div class="navigation">
       <a href="#" onclick="showContent('events')">Events</a>
       <a href="#" onclick="showContent('requests')">Requests</a>
+      <a href="#" onclick="showContent('requestsfrommanagers')">Requests from Managers</a>
       <a href="#" onclick="showContent('eventsapplied')">Events Applied</a>
       <a href="#" onclick="showContent('notifications')">Notifications</a>
       <a href="#" onclick="showContent('remainders')">Remainders</a>
@@ -167,6 +168,10 @@
           <!-- Requests table content will be added here -->
         </tbody>
       </table>
+    </div>
+
+    <div class="content" id="requestsfrommanagers">
+      <h2>Requests from Manager</h2>
     </div>
 
     <div class="content" id="notifications">
@@ -621,6 +626,76 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 
+
+
+  // Function to fetch and display requests from managers
+  function fetchManagerRequests() {
+    
+    const requestsDiv = document.getElementById('requestsfrommanagers');
+
+    // Fetch the volunteer ID from the rendered HTML
+    const volunteerId = window.location.href.split('/').pop().replace("#", "");
+
+    fetch(`/get_manager_requests/${volunteerId}`)
+      .then(response => response.json())
+      .then(data => {
+        const managerRequests = data.manager_requests;
+        
+        if (managerRequests.length === 0) {
+          console.log("yess");
+          const noRequestsMessage = document.createElement('p');
+          noRequestsMessage.textContent = 'No requests from managers.';
+          requestsDiv.appendChild(noRequestsMessage);
+        } else {
+          managerRequests.forEach(request => {
+            const managerName = request.manager_name;
+            const eventId = request.event_id;
+            const eventName = request.event_name;
+            const eventDescription = request.event_description;
+            const eventTime = request.event_time;
+            const eventDuration = request.event_duration;
+            const eventVenue = request.event_venue;
+
+          
+            // Create a table for the manager's data and events
+            const table = document.createElement('table');
+            table.classList.add('manager-requests-table');
+
+            // Create header row for the table
+            const headerRow = table.insertRow();
+            headerRow.innerHTML = `
+              <th>Manager Name</th>
+              <th>Event Name</th>
+              <th>Event Description</th>
+              <th>Event Time</th>
+              <th>Event Duration</th>
+              <th>Action</th>
+            `;
+
+            // Create a row for the manager's event
+            const newRow = table.insertRow();
+            newRow.innerHTML = `
+              <td>${managerName}</td>
+              <td>${eventName}</td>
+              <td>${eventDescription}</td>
+              <td>${eventTime}</td>
+              <td>${eventDuration}</td>
+              <td>
+                <button class="accept-button" data-event-id="${eventId}" data-manager-id="${request.manager_id}">Accept</button>
+              </td>
+            `;
+
+            requestsDiv.appendChild(table);
+          });
+        }
+      })
+      .catch(error => {
+        console.error('Error fetching manager requests:', error);
+      });
+  }
+
+  // Fetch and display manager requests on page load
+  fetchManagerRequests();
 
 
 
